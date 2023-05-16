@@ -1,52 +1,57 @@
-// untuk jalankan ic 745hc595
+#include <SPI.h>
+
+// Definisikan pin untuk koneksi dengan 74HC595
 const int latchPin = 5;   // Pin RCLK (ST_CP)
 const int clockPin = 18;  // Pin SRCLK (SH_CP)
 const int dataPin = 23;   // Pin SER (DS)
-byte leds;     
-//untuk jalankan potensiometer 
-const int pot = 32;   // Pin potensiometer
-float floatMap(float x, float in_min, float in_max, float out_min, float out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
 
-void setup() 
-{
+// Definisikan pin untuk koneksi dengan potensiometer
+const int potentiometerPin = 32;  // Pin ADC untuk membaca potensiometer
+
+void setup() {
+    // Inisialisasi Serial Monitor
   Serial.begin(9600);
-
-  // Set all the pins of 74HC595 as OUTPUT
+  // Inisialisasi pin sebagai OUTPUT
   pinMode(latchPin, OUTPUT);
-  pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);
+
+  // Setup SPI (Serial Peripheral Interface)
+  SPI.begin();
+
+  // Setel kecepatan baca ADC
+  analogReadResolution(12);  // Resolusi bacaan ADC 12-bit
 }
 
-void loop() 
-{
-  leds = 0;        // inisiasi led untuk mati 
-  updateShiftRegister();
-  delay(500);
-  for (int i = 0; i < 8; i++)        // led sebanyak 8 kali perulangan 
-  {
-    bitSet(leds, i);                // untuk set led hidup ke bagian berapa 
-    updateShiftRegister();
-    delay(500);
-        // read the input on analog pin GIOP36:
-  int analogValue = analogRead(pot);
-  // Rescale to potentiometer's voltage (from 0V to 3.3V):
-  float voltage = floatMap(analogValue, 0, 4095, 0, 3.3);
+void loop() {
+  // Baca nilai dari potensiometer
+  int potValue = analogRead(potentiometerPin);
+   
 
-  // print out the value you read:
-  Serial.print("Analog: ");
-  Serial.print(analogValue);
-  Serial.print(", Voltage: ");
-  Serial.println(voltage);
+  // Tampilkan nilai potensiometer pada Serial Monitor
+  Serial.print("Nilai potensiometer: ");
+  Serial.println(potValue);
+  // Map nilai dari potensiometer ke rentang 0-4095
+  int ledCount = map(potValue, 0, 4095, 0, 8);
+  
+  // Menghidupkan LED sesuai dengan putaran potensiometer
+  byte ledData = 0;
+  for (int i = 0; i < ledCount; i++) {
+    bitSet(ledData, i);
   }
+  sendShiftRegisterData(ledData);
 
-  //delay(1000);
+  delay(100);  // Delay untuk stabilisasi
 }
 
-void updateShiftRegister()
-{
-   digitalWrite(latchPin, LOW);
-   shiftOut(dataPin, clockPin, LSBFIRST, leds);
-   digitalWrite(latchPin, HIGH);
+// Fungsi untuk mengirimkan data ke 74HC595
+void sendShiftRegisterData(byte data) {
+  // Mengaktifkan register latch
+  digitalWrite(latchPin, LOW);
+  
+  // Mengirimkan data secara serial menggunakan SPI
+  SPI.transfer(data);
+  
+  // Menonaktifkan register latch, mengirimkan data ke output pin
+  digitalWrite(latchPin, HIGH);
 }
